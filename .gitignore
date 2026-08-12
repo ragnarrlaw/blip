@@ -18,11 +18,17 @@ env/
 *.swp
 *.swo
 
+# RAG
+rag_later/
+
+# Evaluation
+eval/
+
 # Environment
 .env
 
-# Data outputs
-data/outputs/
+# Outputs
+out/
 
 # Cache
 .blip_cache/

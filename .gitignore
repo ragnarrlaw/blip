@@ -30,6 +30,9 @@ eval/
 # Outputs
 out/
 
+# Schemas
+.db/
+
 # Cache
 .blip_cache/
 .pytest_cache/

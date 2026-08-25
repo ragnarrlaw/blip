@@ -3894,7 +3894,7 @@
     "awarded_mark": 0.0,
     "grade_evidence": "X",
     "legibility": "clean",
-    "transcription_verified": "no",
+    "transcription_verified": "yes",
     "needs_review": "no",
     "review_note": "",
     "source_pdf": "paper_160.pdf"

@@ -3060,7 +3060,7 @@
     "model_answer": "",
     "student_answer": "True. Firewall used to protect aginst the unauthorized access.",
     "awarded_mark": 1.0,
-    "grade_evidence": "slash",
+    "grade_evidence": "1",
     "legibility": "clean",
     "transcription_verified": "yes",
     "needs_review": "no",

@@ -3788,7 +3788,7 @@
         "model_answer": "",
         "student_answer": "False",
         "awarded_mark": 1.0,
-        "grade_evidence": "X",
+        "grade_evidence": "1",
         "legibility": "clean",
         "transcription_verified": "yes",
         "needs_review": "no",

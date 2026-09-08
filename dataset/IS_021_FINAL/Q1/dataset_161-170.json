@@ -2956,7 +2956,7 @@
     "model_answer": "",
     "student_answer": "False. Dictionary attack is using trying to all possible keys to attack. That is Dictionary attack.",
     "awarded_mark": 1.0,
-    "grade_evidence": "yes",
+    "grade_evidence": "1",
     "legibility": "clean",
     "transcription_verified": "yes",
     "needs_review": "yes",

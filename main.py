@@ -3,7 +3,6 @@ from db.db import db_manager
 from router import vle, sync, assignments, grading
 import sys
 import logging
-import os
 
 logging.basicConfig(
     level=logging.INFO,

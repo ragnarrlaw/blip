@@ -136,6 +136,7 @@ Return valid JSON matching the schema.
         )
 
         parsed: GradingResult = exec_result.parsed
+        print("exec_results parsed: ", parsed)
         grade.mark_assigned = parsed.mark
         grade.confidence_score = parsed.confidence
         grade.justifications = {
@@ -153,6 +154,7 @@ Return valid JSON matching the schema.
 
         db.commit()
         db.refresh(grade)
+        print("grade: ", grade)
         return grade
 
     def grade_batch(

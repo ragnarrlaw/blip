@@ -122,14 +122,17 @@ class Grade(Base):
 
 class MasterQuestion(Base):
     __tablename__ = "master_question"
+
     id = Column(Integer, primary_key=True, index=True)
-    course_id = Column(Integer, ForeignKey("course.id"), nullable=False)
-    canonical_id = Column(String, nullable=False, index=True)  # e.g., "Q1", "Q6_1"
-    question_text = Column(Text, nullable=False)
-    question_type = Column(String, nullable=False)  # 'independent' or 'scenario'
-    scenario_text = Column(Text, nullable=True)  # Shared context, if any
-    is_scenario_based = Column(Boolean, nullable=False, default=False)
+    assignment_id = Column(Integer, ForeignKey("assignment.id"), nullable=False)
+    canonical_id = Column(String, nullable=False)
+    question_text = Column(String, nullable=False)
+    question_type = Column(String, default="independent")
+    scenario_text = Column(String, nullable=True)
+    is_scenario_based = Column(Boolean, default=False)
     max_mark = Column(Float, nullable=False)
-    model_answer = Column(Text, nullable=False)
-    rubric = Column(Text, nullable=False)
-    course = relationship("Course")
+    model_answer = Column(String, nullable=False)
+    rubric = Column(String, nullable=False)
+
+    # Relationships
+    assignment = relationship("Assignment")

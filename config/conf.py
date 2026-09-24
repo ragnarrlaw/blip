@@ -39,6 +39,7 @@ class Config(BaseSettings):
     # --- model providers (secrets: never sent to or accepted from the frontend) ---
     gemini_api_key: str = ""
     gemini_model_name: str = ""
+    gemini_model_for_question_extraction: str = ""
     xai_api_key: str = ""
     grok_model_name: str = ""
     deepseek_api_key: str = ""

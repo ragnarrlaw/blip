@@ -1,28 +1,36 @@
-from fastapi import FastAPI, Depends
-from sqlalchemy.orm import Session
+from fastapi import FastAPI
 from db.db import db_manager
-import model.model as model# Must be imported so Base knows about your schema
-from router import sync, vle
+from router import vle, sync, assignments, grading
+import sys
+import logging
+import os
 
-# Initialize database tables
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)-8s | %(name)-20s | %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+
+# Create database tables defined in model/model.py
 db_manager.create_tables()
 
 app = FastAPI(
     title="Calibration-Aware Automated Grading API",
-    version="1.1",
-    description="Backend for Moodle integration and RAG-based LLM evaluation."
+    version="1.2",
+    description="Backend for Moodle RPA integration and calibrated RAG grading evaluation.",
 )
 
+# Register endpoints
 app.include_router(vle.router)
 app.include_router(sync.router)
+app.include_router(assignments.router)
+app.include_router(grading.router)
+
 
 @app.get("/health")
-def health_check(db: Session = Depends(db_manager.get_session)):
-    """Verifies that the config-injected database is reachable."""
-    # A simple query to ensure the connection and tables are active
-    course_count = db.query(model.Course).count()
+def health_check():
     return {
         "status": "operational",
-        "courses_tracked": course_count,
-        "database_url": db_manager.config.blip_database_url
+        "database_url": db_manager.config.blip_database_url,
     }
+

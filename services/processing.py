@@ -23,7 +23,11 @@ def process_and_embed_document(version_id: int, config):
 
     try:
         # Fetch relationships
-        version = db.query(ContentItemVersion).filter(ContentItemVersion.id == version_id).first()
+        version = (
+            db.query(ContentItemVersion)
+            .filter(ContentItemVersion.id == version_id)
+            .first()
+        )
         if not version:
             return
 
@@ -42,6 +46,7 @@ def process_and_embed_document(version_id: int, config):
         parsed_dir.mkdir(parents=True, exist_ok=True)
         parsed_path = parsed_dir / f"{version.content_hash}.md"
         parsed_path.write_text(parsed_doc.text, encoding="utf-8")
+        print(f"\n---> ATTENTION: Just saved markdown to: {parsed_path.absolute()} <--- \n")
 
         version.parsed_path = str(parsed_path)
         version.parsed_at = str(int(time.time()))
@@ -49,25 +54,31 @@ def process_and_embed_document(version_id: int, config):
 
         # 2. Chunk the document
         chunks = parsed_doc.chunks(
-            max_tokens=config.blip_embed_max_tokens,
-            overlap=config.blip_chunk_overlap
+            max_tokens=config.blip_embed_max_tokens, overlap=config.blip_chunk_overlap
         )
         chunk_ids = [f"{item.item_key}_v{version.version}#{c.index}" for c in chunks]
         texts = [c.text for c in chunks]
-        metadatas = [{
-            "item_key": item.item_key,
-            "version": version.version,
-            "version_id": version.id,
-            "filename": version.filename,
-            "heading": c.heading
-        } for c in chunks]
+        metadatas = [
+            {
+                "item_key": item.item_key,
+                "version": version.version,
+                "version_id": version.id,
+                "filename": version.filename,
+                "heading": c.heading,
+            }
+            for c in chunks
+        ]
 
         # 3. Vector Eviction: Remove previous version's chunks from ChromaDB
-        previous_versions = db.query(ContentItemVersion).filter(
-            ContentItemVersion.content_item_id == item.id,
-            ContentItemVersion.id != version.id,
-            ContentItemVersion.evicted_at == None
-        ).all()
+        previous_versions = (
+            db.query(ContentItemVersion)
+            .filter(
+                ContentItemVersion.content_item_id == item.id,
+                ContentItemVersion.id != version.id,
+                ContentItemVersion.evicted_at == None,
+            )
+            .all()
+        )
 
         for prev_v in previous_versions:
             if prev_v.chunk_ids:
@@ -81,14 +92,16 @@ def process_and_embed_document(version_id: int, config):
             collection_name=collection_name,
             chunk_ids=chunk_ids,
             texts=texts,
-            metadatas=metadatas
+            metadatas=metadatas,
         )
 
         # 5. Finalize Database State
         version.chunk_ids = chunk_ids
         version.indexed_at = str(int(time.time()))
         db.commit()
-        log.info(f"Successfully embedded {len(chunk_ids)} chunks for {version.filename}")
+        log.info(
+            f"Successfully embedded {len(chunk_ids)} chunks for {version.filename}"
+        )
 
     except Exception as e:
         log.error(f"Processing failed for version_id {version_id}: {str(e)}")
@@ -96,3 +109,4 @@ def process_and_embed_document(version_id: int, config):
         db.commit()
     finally:
         db.close()
+

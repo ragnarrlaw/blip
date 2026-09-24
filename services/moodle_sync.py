@@ -14,15 +14,15 @@ log = logging.getLogger("blip.sync")
 
 
 def sync_course_materials(
-        db: Session,
-        config: Config,
-        moodle: MoodleSession,
-        course_shortname: str,
-        omit_keywords: List[str],
-        background_tasks: BackgroundTasks
+    db: Session,
+    config: Config,
+    moodle: MoodleSession,
+    course_shortname: str,
+    omit_keywords: List[str],
+    background_tasks: BackgroundTasks,
 ) -> Dict[str, Any]:
     try:
-        # 1. Fetch metadata and ensure Course exists in DB
+        # 1. Resolve metadata and ensure Course exists in database
         course_meta = get_course_overview(moodle, course_shortname)
         course_id = course_meta["id"]
 
@@ -32,7 +32,7 @@ def sync_course_materials(
                 id=course_id,
                 course_code=course_meta["shortname"],
                 course_name=course_meta["fullname"],
-                enrollments=10000  # Will update if you query user counts later
+                enrollments=0,
             )
             db.add(course)
         else:
@@ -40,18 +40,16 @@ def sync_course_materials(
             course.course_name = course_meta["fullname"]
         db.commit()
 
-        # 2. Fetch raw course tree structure via Web Services
+        # 2. Fetch course structure
         sections = moodle.call("core_course_get_contents", courseid=course_id)
         moodle_items = flatten_contents(course_id, sections)
 
         results = {"total_found": len(moodle_items), "ingested": 0, "skipped": 0}
 
-        # 3. Process and Ingest
+        # 3. Filter and dispatch ingestion
         for item in moodle_items:
             filename_lower = item.filename.lower()
-
-            # Added .pptx to natively support slides via Docling
-            if not filename_lower.endswith(('.pdf', '.md', '.txt', '.docx', '.pptx')):
+            if not filename_lower.endswith((".pdf", ".md", ".txt", ".docx", ".pptx")):
                 results["skipped"] += 1
                 continue
 
@@ -69,7 +67,7 @@ def sync_course_materials(
                 filename=item.filename,
                 content_kind="material",
                 file_bytes=file_bytes,
-                background_tasks=background_tasks
+                background_tasks=background_tasks,
             )
             results["ingested"] += 1
 
@@ -77,3 +75,4 @@ def sync_course_materials(
 
     except LookupError as e:
         raise ValueError(f"Course not found: {str(e)}")
+

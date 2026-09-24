@@ -16,14 +16,14 @@ def calculate_hash(file_bytes: bytes) -> str:
 
 
 def ingest_course_file(
-        db: Session,
-        config: Config,
-        course_id: int,
-        item_key: str,
-        filename: str,
-        content_kind: str,
-        file_bytes: bytes,
-        background_tasks: BackgroundTasks
+    db: Session,
+    config: Config,
+    course_id: int,
+    item_key: str,
+    filename: str,
+    content_kind: str,
+    file_bytes: bytes,
+    background_tasks: BackgroundTasks,
 ) -> ContentItemVersion:
     """
     Entry point for all incoming files. Hashes content, manages versions,
@@ -39,29 +39,47 @@ def ingest_course_file(
             item_key=item_key,
             name=filename,
             content_kind=content_kind,
-            last_updated=int(time.time())
+            last_updated=int(time.time()),
         )
         db.add(item)
         db.flush()
 
     # 2. Check for duplicate versions (skip identical bytes)
-    existing_version = db.query(ContentItemVersion).filter(
-        ContentItemVersion.content_item_id == item.id,
-        ContentItemVersion.content_hash == file_hash
-    ).first()
+    existing_version = (
+        db.query(ContentItemVersion)
+        .filter(
+            ContentItemVersion.content_item_id == item.id,
+            ContentItemVersion.content_hash == file_hash,
+        )
+        .first()
+    )
 
     if existing_version:
+        # If it crashed previously, 'indexed_at' will be None.
+        if not existing_version.indexed_at:
+            log.info(f"Resuming failed vectorization for {filename}")
+            if content_kind not in ["tutorial", "template"]:
+                background_tasks.add_task(
+                    process_and_embed_document,
+                    version_id=existing_version.id,
+                    config=config,
+                )
         return existing_version
 
     # 3. Determine new version number
-    last_version = db.query(ContentItemVersion).filter(
-        ContentItemVersion.content_item_id == item.id
-    ).order_by(desc(ContentItemVersion.version)).first()
+    last_version = (
+        db.query(ContentItemVersion)
+        .filter(ContentItemVersion.content_item_id == item.id)
+        .order_by(desc(ContentItemVersion.version))
+        .first()
+    )
 
     new_version_num = (last_version.version + 1) if last_version else 1
 
     # 4. Save file to disk permanently
-    course_slug = config.course_slug(str(course_id))  # Usually course_code, simplified here
+    course_slug = config.course_slug(
+        str(course_id)
+    )  # Usually course_code, simplified here
     save_dir = config.content_upload_dir(course_slug)
     save_dir.mkdir(parents=True, exist_ok=True)
 
@@ -76,7 +94,7 @@ def ingest_course_file(
         path=str(file_path),
         content_hash=file_hash,
         size_bytes=len(file_bytes),
-        downloaded_at=str(int(time.time()))
+        downloaded_at=str(int(time.time())),
     )
     db.add(new_version)
     db.commit()
@@ -86,9 +104,8 @@ def ingest_course_file(
     # We skip "tutorial" and "template" as they have no contextual value for RAG
     if content_kind not in ["tutorial", "template"]:
         background_tasks.add_task(
-            process_and_embed_document,
-            version_id=new_version.id,
-            config=config
+            process_and_embed_document, version_id=new_version.id, config=config
         )
 
     return new_version
+

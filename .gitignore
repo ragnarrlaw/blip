@@ -36,3 +36,6 @@ var/
 # Cache
 .blip_cache/
 .pytest_cache/
+
+# Xlsx
+*.xlsx

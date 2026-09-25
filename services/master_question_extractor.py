@@ -26,7 +26,7 @@ def generate_master_questions_from_file(
     """
     raw_text = file_path.read_text(encoding="utf-8")
 
-    client = genai.Client(api_key=config.gemini_model_for_question_extraction)
+    client = genai.Client(api_key=config.gemini_api_key)
 
     generation_config = types.GenerateContentConfig(
         temperature=0.0,

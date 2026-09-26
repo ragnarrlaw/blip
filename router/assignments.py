@@ -1,15 +1,18 @@
 import json
 import shutil
 from pathlib import Path
-from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
+from model.model import Grade
 
-from db.db import db_manager
 from config.conf import get_config, Config
 from services.master_question_extractor import generate_master_questions_from_file
 from services.assignment_service import ingest_moodle_submissions, ingest_research_dataset, get_or_create_assignment
 from services.report_generator import generate_assignment_report
+from typing import Optional
+from sqlalchemy.orm import Session
+from db.db import db_manager
+from services.assignment_service import get_assignment_submissions
 
 router = APIRouter(prefix="/assignments", tags=["Assignments & Setup"])
 
@@ -99,4 +102,76 @@ def export_grading_report(assignment_id: int, db: Session = Depends(db_manager.g
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         print("exception message @ export_grading_report: ", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Don't touch unless you want to nuke grading
+@router.delete("/{assignment_id}/grades")
+async def clear_assignment_grades(
+        assignment_id: int,
+        db: Session = Depends(db_manager.get_session)
+):
+    """Wipes all pending or completed grades for a specific assignment to allow a clean re-ingestion."""
+    try:
+        deleted_count = db.query(Grade).filter(Grade.assignment_id == assignment_id).delete()
+        db.commit()
+        return {
+            "status": "success",
+            "message": f"Clean slate achieved. Destroyed {deleted_count} ghost/partial records for assignment {assignment_id}."
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{assignment_id}/submissions")
+async def inspect_submissions(
+        assignment_id: int,
+        student_id: Optional[str] = Query(None, description="Filter by specific student index/email"),
+        question_id: Optional[str] = Query(None, description="Filter by specific question ID (e.g., Q1, SQ-03)"),
+        limit: int = Query(50, ge=1, le=1000),
+        offset: int = Query(0, ge=0),
+        db: Session = Depends(db_manager.get_session)
+):
+    """
+    Returns granular, row-level parsed submission data for manual inspection.
+    """
+    try:
+        total_records, records = get_assignment_submissions(
+            db=db,
+            assignment_id=assignment_id,
+            student_id=student_id,
+            question_id=question_id,
+            limit=limit,
+            offset=offset
+        )
+
+        return {
+            "assignment_id": assignment_id,
+            "filters_applied": {
+                "student_id": student_id,
+                "question_id": question_id
+            },
+            "pagination": {
+                "total_records": total_records,
+                "limit": limit,
+                "offset": offset
+            },
+            "data": [
+                {
+                    "student_id": r.student_id,
+                    "question_id": r.question_id,
+                    "question_type": r.question_type,
+                    "scenario_text": r.scenario_text,
+                    "question_text": r.question_text,
+                    "student_answer": r.student_answer,
+                    "model_answer": r.model_answer,
+                    "rubric": r.rubric,
+                    "max_mark": r.max_mark,
+                    "mark_assigned": r.mark_assigned,
+                    "confidence_score": r.confidence_score
+                } for r in records
+            ]
+        }
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
